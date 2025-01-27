@@ -1,0 +1,3 @@
+webdriver:
+  driver:
+    chrome: "/Users/pro/Downloads/chromedriver-mac-x64/chromedriver"
