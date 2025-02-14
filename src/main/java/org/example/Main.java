@@ -1,9 +1,11 @@
 package org.example;
 
 import org.example.beatphobia.BeatphobiaCrawling;
+import org.example.danpyeonseonCrawling.DanpyeonseonCrawling;
 import org.example.doorescape.DoorEscapeCrawling;
 import org.example.keyescape.KeyescapeCrawling;
 import org.example.pointnine.PointNineCrawling;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 
 import java.text.SimpleDateFormat;
@@ -14,51 +16,90 @@ import java.util.concurrent.TimeUnit;
 
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Start DoorEscape Crawling...");
+        System.out.println("단편선 Crawling...");
         System.setProperty("webdriver.chrome.driver", "/Users/pro/Downloads/chromedriver-mac-x64/chromedriver");
 
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1); // 1개의 스레드만 사용
+        // ✅ 단편선 강남점 크롤링 실행 스레드
+        Runnable danpyeonseonTask = () -> {
+            String threadName = Thread.currentThread().getName();
+            System.out.println("=== [단편선 강남점] 스케줄러 실행 (Thread: " + threadName + ") ===");
+            long startTime = System.currentTimeMillis();
 
-        Runnable task = () -> {
-            System.out.println("=== 도어이스케이프 스케줄러 실행 ===");
-            System.out.flush(); // 강제 출력
-            ChromeDriver driver = null;
+            WebDriver driver = null;
             try {
                 driver = new ChromeDriver();
-                DoorEscapeCrawling doorEscapeCrawling = new DoorEscapeCrawling(driver);
+                DanpyeonseonCrawling crawler = new DanpyeonseonCrawling(driver);
 
                 SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
                 Calendar calendar = Calendar.getInstance();
 
-                for (int i = 0; i < 7; i++) { // 현재 날짜부터 7일간 반복
                     String date = dateFormat.format(calendar.getTime());
-                    System.out.println("[DoorEscape] 날짜: " + date);
+                    System.out.println("[단편선] (Thread: " + threadName + ") 날짜: " + date);
+                    crawler.crawlAllDates(date);
+                    calendar.add(Calendar.DAY_OF_YEAR, 1);
 
-                    doorEscapeCrawling.crawlThemesForDate(date); // 도어이스케이프 크롤링 실행
 
-                    calendar.add(Calendar.DAY_OF_YEAR, 1); // 다음 날로 이동
-                }
-
-                System.out.println("[DoorEscape] 크롤링 완료");
+                System.out.println("[단편선] (Thread: " + threadName + ") 완료");
             } catch (Exception e) {
-                System.err.println("[DoorEscape] Error during crawling: " + e.getMessage());
-                e.printStackTrace(); // 에러 상세 출력
+                System.err.println("[단편선] (Thread: " + threadName + ") Error: " + e.getMessage());
             } finally {
-                if (driver != null) {
-                    driver.quit();
-                }
+                if (driver != null) driver.quit();
+                System.out.println("[단편선] (Thread: " + threadName + ") Execution Time: " +
+                        (System.currentTimeMillis() - startTime) + "ms");
             }
         };
 
-        // 매시간마다 크롤링 실행 (0초 후 시작, 1시간 간격 실행)
-        scheduler.scheduleAtFixedRate(task, 0, 1, TimeUnit.HOURS);
+        // 스레드 시작 (멀티스레드 환경 가정)
+        new Thread(danpyeonseonTask).start();
 
-        // 메인 스레드 유지 (스케줄러가 계속 동작하도록 함)
-        try {
-            Thread.currentThread().join();
-        } catch (InterruptedException e) {
-            System.err.println("Main thread interrupted: " + e.getMessage());
-        }
+    }
+}
+//        System.out.println("Start DoorEscape Crawling...");
+//        System.setProperty("webdriver.chrome.driver", "/Users/pro/Downloads/chromedriver-mac-x64/chromedriver");
+//
+//        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1); // 1개의 스레드만 사용
+//
+//        Runnable task = () -> {
+//            System.out.println("=== 도어이스케이프 스케줄러 실행 ===");
+//            System.out.flush(); // 강제 출력
+//            ChromeDriver driver = null;
+//            try {
+//                driver = new ChromeDriver();
+//                DoorEscapeCrawling doorEscapeCrawling = new DoorEscapeCrawling(driver);
+//
+//                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+//                Calendar calendar = Calendar.getInstance();
+//
+//                for (int i = 0; i < 7; i++) { // 현재 날짜부터 7일간 반복
+//                    String date = dateFormat.format(calendar.getTime());
+//                    System.out.println("[DoorEscape] 날짜: " + date);
+//
+//                    doorEscapeCrawling.crawlThemesForDate(date); // 도어이스케이프 크롤링 실행
+//
+//                    calendar.add(Calendar.DAY_OF_YEAR, 1); // 다음 날로 이동
+//                }
+//
+//                System.out.println("[DoorEscape] 크롤링 완료");
+//            } catch (Exception e) {
+//                System.err.println("[DoorEscape] Error during crawling: " + e.getMessage());
+//                e.printStackTrace(); // 에러 상세 출력
+//            } finally {
+//                if (driver != null) {
+//                    driver.quit();
+//                }
+//            }
+//        };
+//
+//        // 매시간마다 크롤링 실행 (0초 후 시작, 1시간 간격 실행)
+//        scheduler.scheduleAtFixedRate(task, 0, 1, TimeUnit.HOURS);
+//
+//        // 메인 스레드 유지 (스케줄러가 계속 동작하도록 함)
+//        try {
+//            Thread.currentThread().join();
+//        } catch (InterruptedException e) {
+//            System.err.println("Main thread interrupted: " + e.getMessage());
+//        }
 //        System.out.println("=== Start Multi-Site Crawling ===");
 //        System.setProperty("webdriver.chrome.driver", "/Users/pro/Downloads/chromedriver-mac-x64/chromedriver");
 //
@@ -163,10 +204,3 @@ public class Main {
 //        scheduler.scheduleAtFixedRate(keyescapeTask, 0, 1, TimeUnit.HOURS);
 //
 //        // 메인 스레드 유지 (스케줄러가 계속 동작하도록 함)
-//        try {
-//            Thread.currentThread().join();
-//        } catch (InterruptedException e) {
-//            System.err.println("Main thread interrupted: " + e.getMessage());
-//        }
-    }
-}
