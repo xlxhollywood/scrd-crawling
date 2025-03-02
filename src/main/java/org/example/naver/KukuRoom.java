@@ -1,4 +1,4 @@
-package org.example.kukuRoom;
+package org.example.naver;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
