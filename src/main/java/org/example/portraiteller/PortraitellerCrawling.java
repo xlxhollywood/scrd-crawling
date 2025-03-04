@@ -145,7 +145,9 @@ public class PortraitellerCrawling {
 
     public static void main(String[] args) {
         PortraitellerCrawling crawler = new PortraitellerCrawling();
-        // 예시: 2025-03-01부터 7일간 데이터 크롤링
-        crawler.crawlDateRange("2025-03-01", 7);
+        // 현재 날짜를 "yyyy-MM-dd" 형식으로 구해서, 7일간 크롤링하도록 함
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        String todayStr = sdf.format(new Date());
+        crawler.crawlDateRange(todayStr, 7);
     }
 }

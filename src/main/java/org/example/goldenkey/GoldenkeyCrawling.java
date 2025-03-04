@@ -106,7 +106,7 @@ public class GoldenkeyCrawling {
     /**
      * 전체 매장에 대해 오늘부터 일주일간 크롤링 수행
      */
-    public void crawlAllDates() {
+    public void     crawlAllDates() {
         System.out.println("===== [황금열쇠 예약 크롤링 시작 - (OkHttp + JSoup)] =====");
         Calendar cal = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
