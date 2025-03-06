@@ -3,7 +3,7 @@ package org.example;
 import org.example.beatphobia.BeatphobiaCrawling;
 import org.example.danpyeonseonCrawling.DanpyeonseonCrawling;
 import org.example.doorescape.DoorEscapeCrawling;
-import org.example.keyescape.KeyescapeCrawling;
+import org.example.keyescape.KeyEscapeCrawling;
 import org.example.pointnine.PointNineCrawling;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
