@@ -48,7 +48,7 @@ public class KeyescapeCrawling {
 
     private List<String> fetchAvailableTimesForTheme(String themeId, String index, String date) {
         try {
-            driver.get("https://www.keyescape.co.kr/web/home.php?go=rev.make");
+            driver.get("https://web.keyescape.com/reservation.php");
             selectDate(date);
             selectTheme(themeId, index);
             return fetchAvailableTimes();
