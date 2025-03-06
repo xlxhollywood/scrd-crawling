@@ -1,30 +1,31 @@
 package org.example.masterkey;
 
-import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.UpdateOptions;
 import org.bson.Document;
 import org.example.config.MongoConfig;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.*;
+import java.util.NoSuchElementException;
 
 public class MasterKeyCrawling {
     private final MongoCollection<Document> reservationCollection;
 
-    // 마스터키 지점 매핑 정보
     private static class ThemeMapping {
         int id;
         String brand;
         String location;
         String branch;
         String title;
-        int bid;  // 해당 지점의 bid 값 추가
+        int bid;
         ThemeMapping(int id, String brand, String location, String branch, String title, int bid) {
             this.id = id;
             this.brand = brand;
@@ -35,7 +36,6 @@ public class MasterKeyCrawling {
         }
     }
 
-    // 모든 지점의 테마 매핑 (추가된 건대점, 마스터키강남점 포함)
     private static final List<ThemeMapping> THEME_MAPPINGS = Arrays.asList(
             // 신촌 (bid=32)
             new ThemeMapping(40, "마스터키", "신촌", "프라임 신촌 퍼블릭점", "SCENE : 404 NOT FOUND", 32),
@@ -54,19 +54,25 @@ public class MasterKeyCrawling {
             new ThemeMapping(134, "마스터키", "강남", "마스터키강남점", "갱생", 35),
             new ThemeMapping(135, "마스터키", "강남", "마스터키강남점", "더맨", 35),
             new ThemeMapping(136, "마스터키", "강남", "마스터키강남점", "STAFF ONLY", 35),
-            new ThemeMapping(137, "마스터키", "강남", "마스터키강남점", "작은창고", 35)
+            new ThemeMapping(137, "마스터키", "강남", "마스터키강남점", "작은창고", 35),
+            //  잠실점 (bid=21)
+            new ThemeMapping(50, "마스터키", "잠실", "잠실점", "이스케이프 플랜", 21),
+            new ThemeMapping(67, "마스터키", "잠실", "잠실점", "어게인", 21),
+            new ThemeMapping(51, "마스터키", "잠실", "잠실점", "그리고 아무도 없었다", 21),
+            new ThemeMapping(53, "마스터키", "잠실", "잠실점", "블랙룸 : 쉽게 만들어진 방", 21),
+            new ThemeMapping(65, "마스터키", "잠실", "잠실점", "샵보이스", 21),
+            new ThemeMapping(63, "마스터키", "잠실", "잠실점", "더매치 : 마지막 전쟁", 21)
+
+
     );
 
     public MasterKeyCrawling() {
-        MongoClient mongoClient = MongoConfig.getMongoClient(); // MongoConfig 사용
+        MongoClient mongoClient = MongoConfig.getMongoClient();
         MongoDatabase database = mongoClient.getDatabase("scrd");
         this.reservationCollection = database.getCollection("reservation");
     }
 
-    /**
-     * MongoDB에 예약 데이터를 저장 (Upsert 방식)
-     */
-    private void saveToDatabase(ThemeMapping mapping, String date, List<String> availableTimes) {
+    private void saveToDatabase(ThemeMapping mapping, String date, List<String> availableTimes, boolean isFirstDate) {
         try {
             Document filter = new Document("title", mapping.title)
                     .append("date", date)
@@ -81,72 +87,87 @@ public class MasterKeyCrawling {
                     .append("date", date)
                     .append("availableTimes", availableTimes)
                     .append("updatedAt", new Date())
-                    .append("expireAt", new Date(System.currentTimeMillis() + 24L * 60 * 60 * 1000)); // 24시간 후 만료
+                    .append("expireAt", new Date(System.currentTimeMillis() + 24L * 60 * 60 * 1000));
 
             reservationCollection.updateOne(filter, new Document("$set", docToSave), new UpdateOptions().upsert(true));
+
+            // ✅ 지점명과 날짜를 한 번만 출력하도록 개선
+            if (isFirstDate) {
+                System.out.println("\n📍 " + mapping.branch + " (" + date + ")");
+            }
+            System.out.println(" - " + mapping.title + " : " + (availableTimes.isEmpty() ? "없음" : availableTimes));
         } catch (Exception e) {
             System.err.println("DB 저장 오류: " + e.getMessage());
         }
     }
 
-    /**
-     * Selenium으로 각 지점(bid)의 예약 가능 시간 크롤링
-     */
     public void crawlReservations(String startDate, int days) {
-        System.setProperty("webdriver.chrome.driver", "/Users/pro/Downloads/chromedriver-mac-x64/chromedriver"); // Mac용 ChromeDriver 경로
+        System.setProperty("webdriver.chrome.driver", "/Users/pro/Downloads/chromedriver-mac-x64/chromedriver");
 
         WebDriver driver = new ChromeDriver();
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
 
         try {
+            Set<Integer> visitedBids = new HashSet<>();
             for (ThemeMapping mapping : THEME_MAPPINGS) {
+                if (visitedBids.contains(mapping.bid)) continue;
+                visitedBids.add(mapping.bid);
+
                 String url = "https://www.master-key.co.kr/booking/bk_detail?bid=" + mapping.bid;
                 driver.get(url);
-                System.out.println("크롤링 시작: " + mapping.branch + " (" + mapping.title + ") - " + url);
+                System.out.println("\n🔥 크롤링 시작: " + mapping.branch + " (" + url + ")");
 
-                // 일주일치 날짜 가져오기
+                wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(".date_click_div1 p")));
                 List<WebElement> dateElements = driver.findElements(By.cssSelector(".date_click_div1 p"));
 
                 for (int i = 0; i < Math.min(dateElements.size(), days); i++) {
                     WebElement dateElement = dateElements.get(i);
-                    String date = dateElement.getAttribute("data-dd"); // 날짜 값 가져오기
-                    dateElement.click();
-                    Thread.sleep(2000); // 비동기 로딩 대기
+                    String date = dateElement.getAttribute("data-dd");
 
-                    // 방 목록 가져오기
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", dateElement);
+                    Thread.sleep(2000);
+
+                    wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("#booking_list .box2-inner")));
                     List<WebElement> rooms = driver.findElements(By.cssSelector("#booking_list .box2-inner"));
 
-                    System.out.println("===== [" + date + "] 예약 가능 시간 - " + mapping.branch + " (" + mapping.title + ") =====");
-
+                    Map<String, List<String>> themeAvailability = new LinkedHashMap<>();
                     for (WebElement room : rooms) {
-                        // 방 이름 가져오기
-                        String title = room.findElement(By.cssSelector(".title")).getText().trim();
+                        try {
+                            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(".title")));
+                            String title = room.findElement(By.cssSelector(".title")).getText().trim();
 
-                        // 예약 가능한 시간 가져오기
-                        List<WebElement> availableTimesElements = room.findElements(By.cssSelector(".right p.col.true a"));
-                        List<String> availableTimes = new ArrayList<>();
+                            wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector(".right")));
+                            List<WebElement> availableTimesElements = room.findElements(By.cssSelector(".right p.col.true a"));
 
-                        for (WebElement timeElement : availableTimesElements) {
-                            String rawTime = timeElement.getText().trim();
-                            String cleanTime = rawTime.replace("예약가능", "").trim(); // "예약가능" 제거
-                            availableTimes.add(cleanTime);
+                            List<String> availableTimes = new ArrayList<>();
+                            for (WebElement timeElement : availableTimesElements) {
+                                availableTimes.add(timeElement.getText().trim().replace("예약가능", "").trim());
+                            }
+
+                            themeAvailability.put(title, availableTimes);
+                        } catch (TimeoutException | NoSuchElementException e) {
+                            System.out.println("⚠ 예약 가능한 시간이 없음.");
                         }
+                    }
 
-                        System.out.println("[" + title + "] 예약 가능 시간: " + availableTimes);
-                        saveToDatabase(mapping, date, availableTimes); // DB 저장
+                    boolean isFirstDate = true;
+                    for (Map.Entry<String, List<String>> entry : themeAvailability.entrySet()) {
+                        String themeTitle = entry.getKey();
+                        List<String> availableTimes = entry.getValue();
+                        saveToDatabase(new ThemeMapping(mapping.id, mapping.brand, mapping.location, mapping.branch, themeTitle, mapping.bid), date, availableTimes, isFirstDate);
+                        isFirstDate = false;
                     }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            driver.quit(); // 브라우저 종료
+            driver.quit();
         }
     }
 
     public static void main(String[] args) {
         MasterKeyCrawling crawler = new MasterKeyCrawling();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-        String todayStr = sdf.format(new Date());
-        crawler.crawlReservations(todayStr, 7); // 오늘부터 7일간 크롤링
+        crawler.crawlReservations(new SimpleDateFormat("yyyy-MM-dd").format(new Date()), 7);
     }
 }
