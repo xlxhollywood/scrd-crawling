@@ -21,8 +21,8 @@ public class MongoConfig {
     private static MongoClient mongoClient;
 
     // MongoClient를 가져오는 메서드 (싱글톤 패턴으로 구현)
-    public static MongoClient getMongoClient() {
-        if (mongoClient == null) { // mongoClient가 아직 생성되지 않았을 경우
+        if (mongoClient == nul
+    l) { // mongoClient가 아직 생성되지 않았을 경우
             synchronized (MongoConfig.class) { // 동기화 블록으로 동시성 문제 방지
                 if (mongoClient == null) { // 다시 확인 후 MongoClient 생성
                     // MongoDB 서버 API 설정 (버전 V1 사용)
